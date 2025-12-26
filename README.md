@@ -1,5 +1,8 @@
 # binauth
 
+[![CI](https://github.com/insmnia/binauth/actions/workflows/ci.yml/badge.svg)](https://github.com/insmnia/binauth/actions/workflows/ci.yml)
+[![PyPI version](https://badge.fury.io/py/binauth.svg)](https://pypi.org/project/binauth/)
+
 A bitwise permission system for Python with SQLAlchemy and FastAPI integration.
 
 ## Features
