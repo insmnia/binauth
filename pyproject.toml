@@ -1,0 +1,66 @@
+[tool.poetry]
+name = "binauth"
+version = "0.1.0"
+description = "Bitwise permission system for Python with SQLAlchemy and FastAPI integration"
+authors = []
+license = "MIT"
+readme = "README.md"
+packages = [{include = "binauth", from = "src"}]
+keywords = ["permissions", "authorization", "bitwise", "fastapi", "sqlalchemy"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Framework :: FastAPI",
+    "Topic :: Security",
+    "Typing :: Typed",
+]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+sqlalchemy = {version = "^2.0", optional = true}
+fastapi = {version = ">=0.100", optional = true}
+
+[tool.poetry.extras]
+db = ["sqlalchemy"]
+fastapi = ["fastapi"]
+all = ["sqlalchemy", "fastapi"]
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0"
+pytest-asyncio = "^0.24"
+aiosqlite = "^0.20"
+httpx = "^0.28"
+ruff = "^0.8"
+greenlet = "^3.1"
+uvicorn = "^0.40.0"
+commitizen = "^4.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "0.1.0"
+version_files = [
+    "pyproject.toml:^version",
+    "src/binauth/__init__.py:^__version__",
+]
+tag_format = "v$version"
+update_changelog_on_bump = true
+changelog_file = "CHANGELOG.md"
