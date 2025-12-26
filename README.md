@@ -184,7 +184,3 @@ schema = manager.get_permissions_schema()
 
 - Maximum 32 actions per scope (uses PostgreSQL INTEGER for storage)
 - Action values must be powers of 2 (`1 << n` where `0 <= n <= 31`)
-
-## License
-
-MIT
