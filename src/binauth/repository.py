@@ -13,6 +13,7 @@ from .exceptions import UndefinedActionError, UndefinedScopeError
 from .manager import PermissionsManager
 from .models import UserPermission
 from .types import (
+    ModelT,
     PermissionAction,
     PermissionBinLevel,
     Permissions,
@@ -21,22 +22,40 @@ from .types import (
 )
 
 
-class AsyncPermissionRepository(Generic[UserIdT]):
+class AsyncPermissionRepository(Generic[UserIdT, ModelT]):
     """
     Asynchronous repository for managing user permissions.
 
-    Generic over the user ID type (int, UUID, or str).
+    Generic over:
+    - UserIdT: The user ID type (int, UUID, or str)
+    - ModelT: The permission model type (must implement PermissionModelProtocol)
 
-    Example with int:
-        repo: AsyncPermissionRepository[int] = AsyncPermissionRepository(session, manager)
+    Example with default UserPermission model:
+        repo: AsyncPermissionRepository[int, UserPermission] = AsyncPermissionRepository(
+            session, manager
+        )
 
-    Example with UUID:
-        repo: AsyncPermissionRepository[UUID] = AsyncPermissionRepository(session, manager)
+    Example with custom model:
+        class MyPermission(Base):
+            __tablename__ = "my_permissions"
+            user_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True)
+            scope_name: Mapped[str] = mapped_column(String(100), primary_key=True)
+            level: Mapped[int] = mapped_column(Integer, default=0)
+
+        repo: AsyncPermissionRepository[UUID, MyPermission] = AsyncPermissionRepository(
+            session, manager, model=MyPermission
+        )
     """
 
-    def __init__(self, session: AsyncSession, manager: PermissionsManager):
+    def __init__(
+        self,
+        session: AsyncSession,
+        manager: PermissionsManager,
+        model: type[ModelT] = UserPermission,  # type: ignore[assignment]
+    ):
         self._session = session
         self._manager = manager
+        self._model: type[ModelT] = model
 
     def _validate_scope(self, scope: PermissionScope) -> None:
         """Validate that the scope exists in the manager."""
@@ -62,9 +81,9 @@ class AsyncPermissionRepository(Generic[UserIdT]):
         self._validate_scope(scope)
 
         result = await self._session.execute(
-            select(UserPermission.level).where(
-                UserPermission.user_id == user_id,
-                UserPermission.scope_name == scope,
+            select(self._model.level).where(
+                self._model.user_id == user_id,
+                self._model.scope_name == scope,
             )
         )
         row = result.scalar_one_or_none()
@@ -76,15 +95,13 @@ class AsyncPermissionRepository(Generic[UserIdT]):
 
         Returns a dict mapping scope names to permission levels.
         """
-        result = await self._session.execute(select(UserPermission).where(UserPermission.user_id == user_id))
+        result = await self._session.execute(select(self._model).where(self._model.user_id == user_id))
         permissions = result.scalars().all()
         return {p.scope_name: p.level for p in permissions}
 
     # ========== Write Operations ==========
 
-    async def set_permission(
-        self, user_id: UserIdT, scope: PermissionScope, level: PermissionBinLevel
-    ) -> UserPermission:
+    async def set_permission(self, user_id: UserIdT, scope: PermissionScope, level: PermissionBinLevel) -> ModelT:
         """
         Set a user's permission level for a scope (overwrites existing).
 
@@ -94,14 +111,14 @@ class AsyncPermissionRepository(Generic[UserIdT]):
             level: The bitwise permission level
 
         Returns:
-            The created/updated UserPermission record
+            The created/updated permission model record
         """
         self._validate_scope(scope)
 
         result = await self._session.execute(
-            select(UserPermission).where(
-                UserPermission.user_id == user_id,
-                UserPermission.scope_name == scope,
+            select(self._model).where(
+                self._model.user_id == user_id,
+                self._model.scope_name == scope,
             )
         )
         existing = result.scalar_one_or_none()
@@ -110,7 +127,7 @@ class AsyncPermissionRepository(Generic[UserIdT]):
             existing.level = level
             permission = existing
         else:
-            permission = UserPermission(
+            permission = self._model(
                 user_id=user_id,
                 scope_name=scope,
                 level=level,
@@ -120,9 +137,7 @@ class AsyncPermissionRepository(Generic[UserIdT]):
         await self._session.flush()
         return permission
 
-    async def grant_actions(
-        self, user_id: UserIdT, scope: PermissionScope, *actions: PermissionAction
-    ) -> UserPermission:
+    async def grant_actions(self, user_id: UserIdT, scope: PermissionScope, *actions: PermissionAction) -> ModelT:
         """
         Grant additional actions to a user for a scope.
 
@@ -134,7 +149,7 @@ class AsyncPermissionRepository(Generic[UserIdT]):
             actions: One or more action enum values to grant
 
         Returns:
-            The updated UserPermission record
+            The updated permission model record
         """
         self._validate_scope(scope)
         for action in actions:
@@ -146,9 +161,7 @@ class AsyncPermissionRepository(Generic[UserIdT]):
 
         return await self.set_permission(user_id, scope, new_level)
 
-    async def revoke_actions(
-        self, user_id: UserIdT, scope: PermissionScope, *actions: PermissionAction
-    ) -> UserPermission:
+    async def revoke_actions(self, user_id: UserIdT, scope: PermissionScope, *actions: PermissionAction) -> ModelT:
         """
         Revoke specific actions from a user for a scope.
 
@@ -160,7 +173,7 @@ class AsyncPermissionRepository(Generic[UserIdT]):
             actions: One or more action enum values to revoke
 
         Returns:
-            The updated UserPermission record
+            The updated permission model record
         """
         self._validate_scope(scope)
         for action in actions:
@@ -181,9 +194,9 @@ class AsyncPermissionRepository(Generic[UserIdT]):
         self._validate_scope(scope)
 
         result = await self._session.execute(
-            delete(UserPermission).where(
-                UserPermission.user_id == user_id,
-                UserPermission.scope_name == scope,
+            delete(self._model).where(
+                self._model.user_id == user_id,
+                self._model.scope_name == scope,
             )
         )
         await self._session.flush()
@@ -195,7 +208,7 @@ class AsyncPermissionRepository(Generic[UserIdT]):
 
         Returns the number of permission records deleted.
         """
-        result = await self._session.execute(delete(UserPermission).where(UserPermission.user_id == user_id))
+        result = await self._session.execute(delete(self._model).where(self._model.user_id == user_id))
         await self._session.flush()
         return result.rowcount
 

@@ -39,8 +39,10 @@ from .registry import (
     PermissionActionRegistry,
 )
 from .types import (
+    ModelT,
     PermissionAction,
     PermissionBinLevel,
+    PermissionModelProtocol,
     Permissions,
     PermissionScope,
     UserIdT,
@@ -55,6 +57,8 @@ __all__ = [
     "PermissionBinLevel",
     "Permissions",
     "UserIdT",
+    "ModelT",
+    "PermissionModelProtocol",
     # Exceptions
     "PermissionError",
     "PermissionDenied",
