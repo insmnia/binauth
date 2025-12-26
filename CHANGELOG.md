@@ -20,3 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `UserWithId` protocol for user objects with `.id` attribute
 - Comprehensive test suite
 - Example applications (basic usage and FastAPI app)
+
+## v0.2.0 (2025-12-26)
+
+### Feat
+
+- binauth package
+
+### Fix
+
+- ruff formatting in tests

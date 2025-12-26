@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "binauth"
-version = "0.1.0"
+version = "0.2.0"
 description = "Bitwise permission system for Python with SQLAlchemy and FastAPI integration"
 authors = []
 license = "MIT"
@@ -58,7 +58,7 @@ select = ["E", "F", "I", "UP"]
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.1.0"
+version = "0.2.0"
 version_files = [
     "pyproject.toml:^version",
     "src/binauth/__init__.py:^__version__",
