@@ -5,6 +5,7 @@ description = "Bitwise permission system for Python with SQLAlchemy and FastAPI 
 authors = []
 license = "MIT"
 readme = "README.md"
+repository = "https://github.com/insmnia/binauth"
 packages = [{include = "binauth", from = "src"}]
 keywords = ["permissions", "authorization", "bitwise", "fastapi", "sqlalchemy"]
 classifiers = [

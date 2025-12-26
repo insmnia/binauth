@@ -14,18 +14,29 @@ A bitwise permission system for Python with SQLAlchemy and FastAPI integration.
 
 ## Installation
 
+### From GitHub
+
 ```bash
 # Core only
-pip install binauth
+pip install git+https://github.com/insmnia/binauth.git
 
 # With SQLAlchemy support
-pip install binauth[db]
+pip install "binauth[db] @ git+https://github.com/insmnia/binauth.git"
 
 # With FastAPI support
-pip install binauth[fastapi]
+pip install "binauth[fastapi] @ git+https://github.com/insmnia/binauth.git"
 
 # All dependencies
-pip install binauth[all]
+pip install "binauth[all] @ git+https://github.com/insmnia/binauth.git"
+```
+
+### From PyPI (when published)
+
+```bash
+pip install binauth
+pip install binauth[db]       # With SQLAlchemy
+pip install binauth[fastapi]  # With FastAPI
+pip install binauth[all]      # All dependencies
 ```
 
 ## Quick Start
