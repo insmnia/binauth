@@ -17,7 +17,7 @@ Basic usage:
     manager = PermissionsManager([TaskPermissions])
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 from .exceptions import (
     InvalidActionValueError,

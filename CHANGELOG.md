@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test suite
 - Example applications (basic usage and FastAPI app)
 
+## v0.3.0 (2025-12-27)
+
+### Feat
+
+- add generic table model for permission repository
+
 ## v0.2.0 (2025-12-26)
 
 ### Feat
