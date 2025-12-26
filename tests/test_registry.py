@@ -5,10 +5,10 @@ from enum import IntEnum
 import pytest
 
 from binauth import (
+    MAX_ACTIONS_PER_SCOPE,
     InvalidActionValueError,
     PermissionActionRegistry,
     TooManyActionsError,
-    MAX_ACTIONS_PER_SCOPE,
 )
 
 

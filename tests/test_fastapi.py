@@ -1,6 +1,5 @@
 """Tests for FastAPI integration."""
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -119,9 +118,7 @@ class TestGetPermissionsRouter:
     def test_router_custom_path(self, manager):
         """Test router with custom path."""
         app = FastAPI()
-        router = get_permissions_router(
-            manager, self.mock_get_current_user, path="/api/v1/permissions"
-        )
+        router = get_permissions_router(manager, self.mock_get_current_user, path="/api/v1/permissions")
         app.include_router(router)
 
         client = TestClient(app)
@@ -137,9 +134,7 @@ class TestGetPermissionsRouter:
     def test_router_custom_tags(self, manager):
         """Test router with custom tags."""
         app = FastAPI()
-        router = get_permissions_router(
-            manager, self.mock_get_current_user, tags=["admin", "permissions"]
-        )
+        router = get_permissions_router(manager, self.mock_get_current_user, tags=["admin", "permissions"])
         app.include_router(router)
 
         # Verify router has custom tags

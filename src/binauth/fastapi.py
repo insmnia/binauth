@@ -221,6 +221,7 @@ class PermissionDependency(Generic[UserIdT]):
             return user_id
 
         if get_current_user_id is not None:
+
             async def dependency_wrapper_id(
                 user_id: UserIdT = Depends(get_current_user_id),
                 db: AsyncSession = Depends(get_db),
@@ -229,6 +230,7 @@ class PermissionDependency(Generic[UserIdT]):
 
             return dependency_wrapper_id
         else:
+
             async def dependency_wrapper_user(
                 user: UserWithId[UserIdT] = Depends(get_current_user),
                 db: AsyncSession = Depends(get_db),
