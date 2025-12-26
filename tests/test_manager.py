@@ -70,7 +70,6 @@ class TestPermissionsManager:
     def test_check_permission_wrong_action_type(self, manager, task_permissions, report_permissions):
         """Test that using action from wrong scope raises error."""
         user = UserWithPermissions({"tasks": 3, "reports": 1})
-        TaskActions = task_permissions.Actions
         ReportActions = report_permissions.Actions
 
         # Using report action on tasks scope should fail
@@ -91,14 +90,10 @@ class TestPermissionsManager:
         Actions = task_permissions.Actions
 
         # User has all of CREATE, READ, UPDATE
-        assert manager.check_permissions(
-            user, "tasks", [Actions.CREATE, Actions.READ], require_all=True
-        ) is True
+        assert manager.check_permissions(user, "tasks", [Actions.CREATE, Actions.READ], require_all=True) is True
 
         # User doesn't have DELETE
-        assert manager.check_permissions(
-            user, "tasks", [Actions.CREATE, Actions.DELETE], require_all=True
-        ) is False
+        assert manager.check_permissions(user, "tasks", [Actions.CREATE, Actions.DELETE], require_all=True) is False
 
     def test_check_permissions_require_any(self, manager, task_permissions):
         """Test checking multiple permissions with require_all=False."""
@@ -106,14 +101,10 @@ class TestPermissionsManager:
         Actions = task_permissions.Actions
 
         # User has CREATE
-        assert manager.check_permissions(
-            user, "tasks", [Actions.CREATE, Actions.DELETE], require_all=False
-        ) is True
+        assert manager.check_permissions(user, "tasks", [Actions.CREATE, Actions.DELETE], require_all=False) is True
 
         # User has neither UPDATE nor DELETE
-        assert manager.check_permissions(
-            user, "tasks", [Actions.UPDATE, Actions.DELETE], require_all=False
-        ) is False
+        assert manager.check_permissions(user, "tasks", [Actions.UPDATE, Actions.DELETE], require_all=False) is False
 
     def test_empty_registries(self):
         """Test manager with no registries."""
@@ -191,6 +182,7 @@ class TestPermissionsManager:
 
             class Actions(IntEnum):
                 READ = 1 << 0
+
             # No action_descriptions defined
 
         manager = PermissionsManager([NoDescPermissions])

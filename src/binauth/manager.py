@@ -151,19 +151,20 @@ class PermissionsManager:
 
             actions: list[ActionSchema] = []
             for action in registry.get_actions():
-                actions.append({
-                    "name": action.name,
-                    "value": action.value,
-                    "description": registry.get_action_description(action.name),
-                })
+                actions.append(
+                    {
+                        "name": action.name,
+                        "value": action.value,
+                        "description": registry.get_action_description(action.name),
+                    }
+                )
 
-            categories[category].append({
-                "name": scope,
-                "description": scope_desc,
-                "actions": actions,
-            })
+            categories[category].append(
+                {
+                    "name": scope,
+                    "description": scope_desc,
+                    "actions": actions,
+                }
+            )
 
-        return [
-            {"name": name, "scopes": scopes}
-            for name, scopes in categories.items()
-        ]
+        return [{"name": name, "scopes": scopes} for name, scopes in categories.items()]
