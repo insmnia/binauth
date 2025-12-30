@@ -14,8 +14,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .exceptions import PermissionDenied
 from .manager import CategorySchema, PermissionsManager
+from .models import UserPermission
 from .repository import AsyncPermissionRepository
 from .types import (
+    ModelT,
     PermissionAction,
     Permissions,
     PermissionScope,
@@ -88,11 +90,13 @@ class PermissionCache(Generic[UserIdT]):
         self._cache.clear()
 
 
-class PermissionDependency(Generic[UserIdT]):
+class PermissionDependency(Generic[UserIdT, ModelT]):
     """
     FastAPI dependency factory for permission checks.
 
-    Generic over the user ID type (int, UUID, or str).
+    Generic over:
+    - UserIdT: The user ID type (int, UUID, or str)
+    - ModelT: The permission model type (must implement PermissionModelProtocol)
 
     Usage:
         permission = create_permission_dependency(manager, get_user_id, get_db)
@@ -100,6 +104,11 @@ class PermissionDependency(Generic[UserIdT]):
         @router.get("/tasks")
         async def list_tasks(_ = Depends(permission.require("tasks", Actions.READ))):
             ...
+
+    Usage with custom model:
+        permission = create_permission_dependency(
+            manager, get_user_id, get_db, model=MyPermissionModel
+        )
     """
 
     def __init__(
@@ -109,6 +118,7 @@ class PermissionDependency(Generic[UserIdT]):
         cache: PermissionCache[UserIdT],
         get_current_user_id: Callable[..., Awaitable[UserIdT]] | None = None,
         get_current_user: Callable[..., Awaitable[UserWithId[UserIdT]]] | None = None,
+        model: type[ModelT] = UserPermission,  # type: ignore[assignment]
     ):
         if get_current_user_id is None and get_current_user is None:
             raise ValueError("Either get_current_user_id or get_current_user must be provided")
@@ -120,6 +130,7 @@ class PermissionDependency(Generic[UserIdT]):
         self._get_current_user = get_current_user
         self._get_db = get_db
         self._cache = cache
+        self._model = model
 
     def require(
         self,
@@ -193,6 +204,7 @@ class PermissionDependency(Generic[UserIdT]):
         get_current_user = self._get_current_user
         get_db = self._get_db
         cache = self._cache
+        model = self._model
 
         async def check_permission_dependency(
             user_id: UserIdT,
@@ -203,7 +215,7 @@ class PermissionDependency(Generic[UserIdT]):
             if cached is not None:
                 permissions = cached
             else:
-                repo: AsyncPermissionRepository[UserIdT] = AsyncPermissionRepository(db, manager)
+                repo: AsyncPermissionRepository[UserIdT, ModelT] = AsyncPermissionRepository(db, manager, model=model)
                 permissions = await repo.get_all_user_permissions(user_id)
                 cache.set(user_id, permissions)
 
@@ -251,7 +263,8 @@ def create_permission_dependency(
     get_current_user_id: Callable[..., Awaitable[UserIdT]] | None = None,
     get_current_user: Callable[..., Awaitable[UserWithId[UserIdT]]] | None = None,
     cache_ttl: int = 60,
-) -> PermissionDependency[UserIdT]:
+    model: type[ModelT] = UserPermission,  # type: ignore[assignment]
+) -> PermissionDependency[UserIdT, ModelT]:
     """
     Create a PermissionDependency instance for use in FastAPI.
 
@@ -268,6 +281,9 @@ def create_permission_dependency(
                          attribute. Mutually exclusive with get_current_user_id.
         cache_ttl: Time-to-live for cached permissions in seconds.
                   Set to 0 to disable caching. Default: 60 seconds.
+        model: The permission model class to use for database queries.
+               Defaults to UserPermission. Use a custom model for UUID user IDs
+               or different table names.
 
     Returns:
         A PermissionDependency instance with require(), require_all(),
@@ -288,6 +304,17 @@ def create_permission_dependency(
         permission = create_permission_dependency(
             manager, get_db, get_current_user=get_current_user
         )
+
+    Example with custom model:
+        class MyPermission(Base):
+            __tablename__ = "my_permissions"
+            user_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True)
+            scope_name: Mapped[str] = mapped_column(String(100), primary_key=True)
+            level: Mapped[int] = mapped_column(Integer, default=0)
+
+        permission = create_permission_dependency(
+            manager, get_db, get_current_user_id=get_current_user_id, model=MyPermission
+        )
     """
     cache: PermissionCache[UserIdT] = PermissionCache(ttl_seconds=cache_ttl)
 
@@ -297,6 +324,7 @@ def create_permission_dependency(
         cache=cache,
         get_current_user_id=get_current_user_id,
         get_current_user=get_current_user,
+        model=model,
     )
 
 
