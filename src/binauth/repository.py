@@ -30,10 +30,27 @@ class AsyncPermissionRepository(Generic[UserIdT, ModelT]):
     - UserIdT: The user ID type (int, UUID, or str)
     - ModelT: The permission model type (must implement PermissionModelProtocol)
 
+    Args:
+        session: SQLAlchemy async session
+        manager: PermissionsManager instance for scope/action validation
+        model: Permission model class (default: UserPermission)
+        autocommit: If True, commit after each write operation.
+                   If False (default), only flush changes.
+
+    The autocommit setting can be overridden on individual method calls
+    by passing the `autocommit` parameter to write methods.
+
     Example with default UserPermission model:
         repo: AsyncPermissionRepository[int, UserPermission] = AsyncPermissionRepository(
             session, manager
         )
+
+    Example with autocommit enabled:
+        repo = AsyncPermissionRepository(session, manager, autocommit=True)
+
+    Example with per-method autocommit override:
+        repo = AsyncPermissionRepository(session, manager, autocommit=False)
+        await repo.set_permission(user_id, scope, level, autocommit=True)
 
     Example with custom model:
         class MyPermission(Base):
@@ -52,10 +69,26 @@ class AsyncPermissionRepository(Generic[UserIdT, ModelT]):
         session: AsyncSession,
         manager: PermissionsManager,
         model: type[ModelT] = UserPermission,  # type: ignore[assignment]
+        autocommit: bool = False,
     ):
         self._session = session
         self._manager = manager
         self._model: type[ModelT] = model
+        self._autocommit = autocommit
+
+    async def _persist_changes(self, autocommit: bool | None = None) -> None:
+        """
+        Flush or commit changes based on autocommit setting.
+
+        Args:
+            autocommit: Override the repository-level autocommit setting.
+                       If None, uses the repository default.
+        """
+        should_commit = autocommit if autocommit is not None else self._autocommit
+        if should_commit:
+            await self._session.commit()
+        else:
+            await self._session.flush()
 
     def _validate_scope(self, scope: PermissionScope) -> None:
         """Validate that the scope exists in the manager."""
@@ -101,7 +134,13 @@ class AsyncPermissionRepository(Generic[UserIdT, ModelT]):
 
     # ========== Write Operations ==========
 
-    async def set_permission(self, user_id: UserIdT, scope: PermissionScope, level: PermissionBinLevel) -> ModelT:
+    async def set_permission(
+        self,
+        user_id: UserIdT,
+        scope: PermissionScope,
+        level: PermissionBinLevel,
+        autocommit: bool | None = None,
+    ) -> ModelT:
         """
         Set a user's permission level for a scope (overwrites existing).
 
@@ -109,6 +148,8 @@ class AsyncPermissionRepository(Generic[UserIdT, ModelT]):
             user_id: The user's ID
             scope: The permission scope name
             level: The bitwise permission level
+            autocommit: Override the repository-level autocommit setting.
+                       If None, uses the repository default.
 
         Returns:
             The created/updated permission model record
@@ -134,10 +175,16 @@ class AsyncPermissionRepository(Generic[UserIdT, ModelT]):
             )
             self._session.add(permission)
 
-        await self._session.flush()
+        await self._persist_changes(autocommit)
         return permission
 
-    async def grant_actions(self, user_id: UserIdT, scope: PermissionScope, *actions: PermissionAction) -> ModelT:
+    async def grant_actions(
+        self,
+        user_id: UserIdT,
+        scope: PermissionScope,
+        *actions: PermissionAction,
+        autocommit: bool | None = None,
+    ) -> ModelT:
         """
         Grant additional actions to a user for a scope.
 
@@ -147,6 +194,8 @@ class AsyncPermissionRepository(Generic[UserIdT, ModelT]):
             user_id: The user's ID
             scope: The permission scope name
             actions: One or more action enum values to grant
+            autocommit: Override the repository-level autocommit setting.
+                       If None, uses the repository default.
 
         Returns:
             The updated permission model record
@@ -159,9 +208,15 @@ class AsyncPermissionRepository(Generic[UserIdT, ModelT]):
         additional_level = sum(action.value for action in actions)
         new_level = current_level | additional_level
 
-        return await self.set_permission(user_id, scope, new_level)
+        return await self.set_permission(user_id, scope, new_level, autocommit=autocommit)
 
-    async def revoke_actions(self, user_id: UserIdT, scope: PermissionScope, *actions: PermissionAction) -> ModelT:
+    async def revoke_actions(
+        self,
+        user_id: UserIdT,
+        scope: PermissionScope,
+        *actions: PermissionAction,
+        autocommit: bool | None = None,
+    ) -> ModelT:
         """
         Revoke specific actions from a user for a scope.
 
@@ -171,6 +226,8 @@ class AsyncPermissionRepository(Generic[UserIdT, ModelT]):
             user_id: The user's ID
             scope: The permission scope name
             actions: One or more action enum values to revoke
+            autocommit: Override the repository-level autocommit setting.
+                       If None, uses the repository default.
 
         Returns:
             The updated permission model record
@@ -183,13 +240,25 @@ class AsyncPermissionRepository(Generic[UserIdT, ModelT]):
         revoke_mask = sum(action.value for action in actions)
         new_level = current_level & ~revoke_mask
 
-        return await self.set_permission(user_id, scope, new_level)
+        return await self.set_permission(user_id, scope, new_level, autocommit=autocommit)
 
-    async def delete_permission(self, user_id: UserIdT, scope: PermissionScope) -> bool:
+    async def delete_permission(
+        self,
+        user_id: UserIdT,
+        scope: PermissionScope,
+        autocommit: bool | None = None,
+    ) -> bool:
         """
         Delete a user's permission for a specific scope.
 
-        Returns True if a permission was deleted, False if none existed.
+        Args:
+            user_id: The user's ID
+            scope: The permission scope name
+            autocommit: Override the repository-level autocommit setting.
+                       If None, uses the repository default.
+
+        Returns:
+            True if a permission was deleted, False if none existed.
         """
         self._validate_scope(scope)
 
@@ -199,17 +268,27 @@ class AsyncPermissionRepository(Generic[UserIdT, ModelT]):
                 self._model.scope_name == scope,
             )
         )
-        await self._session.flush()
+        await self._persist_changes(autocommit)
         return result.rowcount > 0
 
-    async def delete_all_permissions(self, user_id: UserIdT) -> int:
+    async def delete_all_permissions(
+        self,
+        user_id: UserIdT,
+        autocommit: bool | None = None,
+    ) -> int:
         """
         Delete all permissions for a user.
 
-        Returns the number of permission records deleted.
+        Args:
+            user_id: The user's ID
+            autocommit: Override the repository-level autocommit setting.
+                       If None, uses the repository default.
+
+        Returns:
+            The number of permission records deleted.
         """
         result = await self._session.execute(delete(self._model).where(self._model.user_id == user_id))
-        await self._session.flush()
+        await self._persist_changes(autocommit)
         return result.rowcount
 
     # ========== Check Operations ==========
